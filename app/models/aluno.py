@@ -1,3 +1,5 @@
+import CarteiraRU
+
 class aluno:
 
     def __init__(self, matricula, email, nome, foto_url):
@@ -10,8 +12,7 @@ class aluno:
 
 
     def realizar_recarga(self, valor):
-        return self.carteira.realizar_recarga(valor)
+        return self.carteira.adicionar_credito(valor)
 
     def consultar_saldo(self):
-        return self.carteira.consultar_saldo()
-    
+        return self.carteira.saldo_atual
