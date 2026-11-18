@@ -10,7 +10,7 @@
     % if alunos:
     <div class="rolagem">
         <table>
-            <thead><tr><th scope="col">Nome</th><th scope="col">E-mail</th><th scope="col">Código RU</th><th scope="col">Cadastro em</th></tr></thead>
+            <thead><tr><th scope="col">Nome</th><th scope="col">E-mail</th><th scope="col">Código RU</th><th scope="col">Cadastro em</th><th scope="col" class="num">Ações</th></tr></thead>
             <tbody>
             % for a in alunos:
                 <tr>
@@ -18,6 +18,9 @@
                     <td>{{a['email']}}</td>
                     <td>{{a['matricula']}}</td>
                     <td>{{data_br(a['criado_em'])}}</td>
+                    <td class="num acoes-linha">
+                        <button type="button" class="link perigo" data-abrir-dialogo="excluir-aluno-{{a['matricula']}}" aria-label="Excluir {{a['nome']}}">Excluir</button>
+                    </td>
                 </tr>
             % end
             </tbody>
@@ -32,15 +35,56 @@
     <h2 id="titulo-admins">Administradores</h2>
     <div class="rolagem">
         <table>
-            <thead><tr><th scope="col">Nome</th><th scope="col">E-mail</th><th scope="col">Identificador</th></tr></thead>
+            <thead><tr><th scope="col">Nome</th><th scope="col">E-mail</th><th scope="col">Identificador</th><th scope="col" class="num">Ações</th></tr></thead>
             <tbody>
             % for a in admins:
-                <tr><td>{{a['nome']}}</td><td>{{a['email']}}</td><td>{{a['id_admin']}}</td></tr>
+                % eu = a['id_admin'] == sessao['usuario_id']
+                <tr>
+                    <td>{{a['nome']}}{{!' <span class="etiqueta">você</span>' if eu else ''}}</td>
+                    <td>{{a['email']}}</td>
+                    <td>{{a['id_admin']}}</td>
+                    <td class="num acoes-linha">
+                        % if not eu:
+                        <button type="button" class="link perigo" data-abrir-dialogo="excluir-admin-{{a['id_admin']}}" aria-label="Excluir {{a['nome']}}">Excluir</button>
+                        % end
+                    </td>
+                </tr>
             % end
             </tbody>
         </table>
     </div>
 </section>
+
+% for a in alunos:
+<dialog id="excluir-aluno-{{a['matricula']}}" aria-labelledby="titulo-excluir-aluno-{{a['matricula']}}">
+    <form method="post" action="/admin/alunos/{{a['matricula']}}/excluir" class="formulario">
+        <input type="hidden" name="csrf" value="{{sessao['csrf']}}">
+        <h2 id="titulo-excluir-aluno-{{a['matricula']}}">Excluir aluno?</h2>
+        <p><strong>{{a['nome']}}</strong> ({{a['email']}}, {{a['matricula']}}) perde o acesso ao app na hora.
+            O saldo de <strong>{{brl(a['saldo'])}}</strong>, o histórico de movimentações e os cartões salvos também são apagados.
+            Essa ação não pode ser desfeita.</p>
+        <div class="acoes">
+            <button type="button" class="secundario" data-fechar-dialogo>Cancelar</button>
+            <button type="submit" class="primario perigo">Excluir aluno</button>
+        </div>
+    </form>
+</dialog>
+% end
+% for a in admins:
+%   if a['id_admin'] != sessao['usuario_id']:
+<dialog id="excluir-admin-{{a['id_admin']}}" aria-labelledby="titulo-excluir-admin-{{a['id_admin']}}">
+    <form method="post" action="/admin/admins/{{a['id_admin']}}/excluir" class="formulario">
+        <input type="hidden" name="csrf" value="{{sessao['csrf']}}">
+        <h2 id="titulo-excluir-admin-{{a['id_admin']}}">Excluir administrador?</h2>
+        <p><strong>{{a['nome']}}</strong> ({{a['email']}}) perde o acesso ao app na hora. Essa ação não pode ser desfeita.</p>
+        <div class="acoes">
+            <button type="button" class="secundario" data-fechar-dialogo>Cancelar</button>
+            <button type="submit" class="primario perigo">Excluir administrador</button>
+        </div>
+    </form>
+</dialog>
+%   end
+% end
 
 <dialog id="dialogo-usuario" aria-labelledby="titulo-dialogo-usuario" {{!'data-abrir="1"' if erro else ''}}>
     <form method="post" action="/admin/usuarios" class="formulario">

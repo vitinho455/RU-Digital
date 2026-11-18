@@ -1,14 +1,11 @@
-"""Aluno: dados cadastrais e carteira do RU."""
-import re
+"""Aluno: dados cadastrais, foto de perfil e carteira do RU."""
 import secrets
 import sqlite3
 
-from app.models import db, seguranca
+from app.models import db, perfil, seguranca
 from app.models.carteira_ru import CarteiraRU, para_centavos
-
-DOMINIO_INSTITUCIONAL = 'unb.br'   # aceita também subdomínios (aluno.unb.br, cic.unb.br...)
-_EMAIL = re.compile(r'[^@\s]+@([a-z0-9-]+\.)*' + re.escape(DOMINIO_INSTITUCIONAL), re.IGNORECASE)
-
+from app.models.perfil import (DOMINIO_INSTITUCIONAL, email_em_uso, normalizar,  # noqa: F401 (reexportado)
+                               validar_email, validar_nome, validar_senha)
 
 class Aluno:
     VALOR_MIN = 1.0      # recarga mínima; não há valor máximo
@@ -51,22 +48,12 @@ class Aluno:
     @classmethod
     def validar_cadastro(cls, nome, email, senha):
         """Retorna a mensagem de erro, ou None se os dados são aceitos."""
-        if len(nome.split()) < 2:
-            return 'Informe seu nome completo (nome e sobrenome).'
-        if len(nome) > 100:
-            return 'O nome pode ter no máximo 100 caracteres.'
-        if len(email) > 120 or not _EMAIL.fullmatch(email):
-            return f'Use seu e-mail institucional (terminado em @{DOMINIO_INSTITUCIONAL}).'
-        if len(senha) < cls.SENHA_MIN:
-            return f'A senha precisa ter pelo menos {cls.SENHA_MIN} caracteres.'
-        if len(senha) > 200:
-            return 'A senha é longa demais.'
-        return None
+        return validar_nome(nome) or validar_email(email) or validar_senha(senha, cls.SENHA_MIN)
 
     @classmethod
     def cadastrar(cls, nome, email, senha):
         """Cria o aluno com carteira zerada. Levanta ValueError com a mensagem a mostrar."""
-        nome, email = ' '.join(nome.split()), email.strip().lower()
+        nome, email = normalizar(nome, email)
         erro = cls.validar_cadastro(nome, email, senha)
         if erro:
             raise ValueError(erro)
@@ -75,7 +62,7 @@ class Aluno:
             matricula = f'RU{secrets.randbelow(900000) + 100000}'
             try:
                 with db.transacao() as con:
-                    if con.execute('SELECT 1 FROM admins WHERE email = ?', (email,)).fetchone():
+                    if email_em_uso(con, email):
                         raise ValueError('Já existe uma conta com esse e-mail.')
                     con.execute(
                         'INSERT INTO alunos (matricula, email, nome, foto_url, senha_hash, criado_em) '
@@ -87,6 +74,13 @@ class Aluno:
                     raise ValueError('Já existe uma conta com esse e-mail.')
                 # senão, o código gerado já existia: tenta outro
         raise RuntimeError('Não foi possível gerar um código para o aluno.')
+
+    # ------------------------------------------------------------- perfil
+
+    def atualizar_perfil(self, nome, email, foto=None, remover_foto=False):
+        """Troca nome, e-mail e, se pedido, a foto. Levanta ValueError; nada é alterado nesse caso."""
+        self.nome, self.email, self.foto_url = perfil.salvar_perfil(
+            'alunos', 'matricula', self.matricula, self.foto_url, nome, email, foto, remover_foto)
 
     # ------------------------------------------------------------ recarga
 

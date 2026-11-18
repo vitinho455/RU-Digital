@@ -66,6 +66,18 @@ def cartoes():
 def cartoes_remover(id_cartao):
     return ctl.remover_cartao(id_cartao)
 
+@app.route('/perfil', method='GET')
+def perfil():
+    return ctl.perfil()
+
+@app.route('/perfil', method='POST')
+def perfil_atualizar():
+    return ctl.atualizar_perfil()
+
+@app.route('/perfil/foto/<nome>', method='GET')
+def perfil_foto(nome):
+    return ctl.foto_perfil(nome)
+
 # Cardápio (aluno e admin)
 @app.route('/cardapio', method='GET')
 def cardapio():
@@ -83,6 +95,14 @@ def admin():
 @app.route('/admin/usuarios', method='POST')
 def admin_usuarios_cadastrar():
     return ctl.cadastrar_usuario()
+
+@app.route('/admin/alunos/<matricula>/excluir', method='POST')
+def admin_alunos_excluir(matricula):
+    return ctl.excluir_aluno(matricula)
+
+@app.route('/admin/admins/<id_admin>/excluir', method='POST')
+def admin_admins_excluir(id_admin):
+    return ctl.excluir_admin(id_admin)
 
 @app.route('/admin/cardapio', method='GET')
 def admin_cardapio_gestao():

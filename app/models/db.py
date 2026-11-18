@@ -9,6 +9,7 @@ from app.models import seguranca
 _APP = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 DB_PATH = os.environ.get('RU_DB', os.path.join(_APP, 'controllers', 'db', 'ru.db'))
 UPLOADS_DIR = os.environ.get('RU_UPLOADS', os.path.join(_APP, 'uploads', 'cardapios'))
+FOTOS_DIR = os.environ.get('RU_FOTOS', os.path.join(_APP, 'uploads', 'fotos'))
 
 FUSO = timezone(timedelta(hours=-3))  # Brasília
 
@@ -53,13 +54,14 @@ CREATE TABLE IF NOT EXISTS admins (
     id_admin    TEXT PRIMARY KEY,
     email       TEXT NOT NULL UNIQUE COLLATE NOCASE,
     nome        TEXT NOT NULL,
+    foto_url    TEXT NOT NULL DEFAULT '',
     senha_hash  TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS cardapios (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
     url_documento  TEXT NOT NULL,
     formato        TEXT NOT NULL,
-    enviado_por    TEXT NOT NULL REFERENCES admins(id_admin),
+    enviado_por    TEXT NOT NULL,      -- id do admin; sem chave estrangeira para o histórico sobreviver à exclusão do admin
     enviado_em     TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS sessoes (
@@ -97,6 +99,7 @@ def transacao():
 def inicializar():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     os.makedirs(UPLOADS_DIR, exist_ok=True)
+    os.makedirs(FOTOS_DIR, exist_ok=True)
     with transacao() as con:
         con.executescript(SCHEMA)
         _migrar(con)
@@ -110,6 +113,15 @@ def _migrar(con):
     colunas = [c['name'] for c in con.execute('PRAGMA table_info(alunos)')]
     if 'criado_em' not in colunas:
         con.execute("ALTER TABLE alunos ADD COLUMN criado_em TEXT NOT NULL DEFAULT ''")
+    if 'foto_url' not in [c['name'] for c in con.execute('PRAGMA table_info(admins)')]:
+        con.execute("ALTER TABLE admins ADD COLUMN foto_url TEXT NOT NULL DEFAULT ''")
+    # Versões antigas ligavam cardapios.enviado_por a admins, o que impedia excluir um admin que já publicou.
+    if con.execute('PRAGMA foreign_key_list(cardapios)').fetchone():
+        con.execute('ALTER TABLE cardapios RENAME TO cardapios_antigo')
+        con.execute('CREATE TABLE cardapios (id INTEGER PRIMARY KEY AUTOINCREMENT, url_documento TEXT NOT NULL, '
+                    'formato TEXT NOT NULL, enviado_por TEXT NOT NULL, enviado_em TEXT NOT NULL)')
+        con.execute('INSERT INTO cardapios SELECT id, url_documento, formato, enviado_por, enviado_em FROM cardapios_antigo')
+        con.execute('DROP TABLE cardapios_antigo')
 
 
 def _dados_de_exemplo(con):

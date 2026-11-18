@@ -5,16 +5,25 @@ from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from app.models import db
 
 _PADRAO_VALOR = re.compile(r'\d{1,12}([.,]\d{1,2})?')
+_COM_MILHAR = re.compile(r'\d{1,3}(\.\d{3})+(,\d{0,2})?')
+
+
+def _limpar(texto: str) -> str:
+    """Aceita o formato da tela ('R$ 120.000.000,00'): tira o 'R$', os pontos de milhar e a vírgula solta no fim."""
+    texto = re.sub(r'^R\$\s*', '', texto.strip(), flags=re.IGNORECASE)
+    if _COM_MILHAR.fullmatch(texto):
+        texto = texto.replace('.', '')
+    return texto.rstrip(',')
 
 
 def para_centavos(valor) -> int:
-    """Converte 25, 25.5, '25,50' etc. em centavos. Levanta ValueError se for inválido ou <= 0."""
+    """Converte 25, 25.5, '25,50', 'R$ 1.250,00' etc. em centavos. Levanta ValueError se for inválido ou <= 0."""
     if isinstance(valor, (int, float, Decimal)) and not isinstance(valor, bool):
         try:
             valor = f"{Decimal(str(valor)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP):f}"
         except InvalidOperation:
             raise ValueError('Informe um valor numérico.')
-    texto = str(valor).strip()
+    texto = _limpar(str(valor))
     if not _PADRAO_VALOR.fullmatch(texto):
         raise ValueError('Informe um valor numérico, com até duas casas decimais (ex.: 20,00).')
     centavos = int((Decimal(texto.replace(',', '.')) * 100).quantize(Decimal('1')))

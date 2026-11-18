@@ -5,7 +5,9 @@
     --superficie: #FFFFFF;
     --azul: #0B5CAD;
     --azul-escuro: #08447F;
-    --ficha: #F2B705;
+    --destaque: #F2B705;
+    --unb-azul: #003366;     /* cores institucionais da UnB */
+    --unb-verde: #00763A;
     --linha: #CBD5E0;
     --ok: #17663F;
     --erro: #A61B1B;
@@ -41,7 +43,7 @@ a { color: var(--azul-escuro); }
 .marca { color: #fff; text-decoration: none; font-stretch: 75%; font-weight: 800; font-size: 1.7rem; letter-spacing: .01em; }
 .topo nav { display: flex; align-items: center; gap: 1.25rem; }
 .topo nav a { color: #fff; text-decoration: none; padding: .35rem 0; border-bottom: 2px solid transparent; }
-.topo nav a:hover, .topo nav a[aria-current] { border-bottom-color: var(--ficha); }
+.topo nav a:hover, .topo nav a[aria-current] { border-bottom-color: var(--destaque); }
 .topo :focus-visible { outline-color: #fff; }
 .topo form { margin: 0; }
 .sair { background: none; border: 1.5px solid rgba(255,255,255,.7); color: #fff; font: inherit; border-radius: var(--raio); padding: .3rem .8rem; cursor: pointer; }
@@ -57,22 +59,31 @@ main { max-width: 68rem; margin: 0 auto; padding: 2rem 1rem 4rem; }
 /* Grade de duas colunas */
 .grade { display: grid; grid-template-columns: minmax(0, 24rem) minmax(0, 1fr); gap: 2.5rem; align-items: start; }
 .coluna { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2rem; }
+.estreito { max-width: 32rem; }
 @media (max-width: 52rem) { .grade { grid-template-columns: minmax(0, 1fr); gap: 2rem; } }
 
-/* A ficha: o saldo, como um tíquete de refeição */
-.ficha {
-    --furo: 14px;
-    background:
-        radial-gradient(circle at 0 50%, var(--papel) 0 var(--furo), transparent calc(var(--furo) + .5px)),
-        radial-gradient(circle at 100% 50%, var(--papel) 0 var(--furo), transparent calc(var(--furo) + .5px)),
-        var(--ficha);
-    border-radius: 10px;
-    padding: 1.4rem 2.2rem 1.3rem;
-}
+/* A ficha: o saldo, como um tíquete de refeição nas cores da UnB.
+   Corpo azul, canhoto verde e, na linha picotada entre os dois, um furo de cada lado. */
+.ficha { --furo: 12px; color: #fff; border-radius: 10px; overflow: hidden; }
 .ficha p { margin: 0; }
-.ficha-rotulo { font-weight: 600; }
-.ficha-valor { font-stretch: 78%; font-weight: 800; font-size: clamp(2.8rem, 9vw, 3.8rem); line-height: 1.1; font-variant-numeric: tabular-nums; }
-.ficha-anterior { margin-top: .9rem !important; padding-top: .7rem; border-top: 2px dashed rgba(20,36,59,.4); font-size: .95rem; }
+.ficha-corpo {
+    background:
+        radial-gradient(circle at 0 100%, var(--papel) 0 var(--furo), transparent calc(var(--furo) + .5px)),
+        radial-gradient(circle at 100% 100%, var(--papel) 0 var(--furo), transparent calc(var(--furo) + .5px)),
+        var(--unb-azul);
+    padding: 1.1rem 1.6rem 1rem;
+}
+.ficha-rotulo { font-weight: 600; font-size: .9rem; opacity: .9; }
+.ficha-valor { font-stretch: 85%; font-weight: 750; font-size: clamp(1.7rem, 5vw, 2.2rem); line-height: 1.15; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.ficha-anterior {
+    background:
+        radial-gradient(circle at 0 0, var(--papel) 0 var(--furo), transparent calc(var(--furo) + .5px)),
+        radial-gradient(circle at 100% 0, var(--papel) 0 var(--furo), transparent calc(var(--furo) + .5px)),
+        var(--unb-verde);
+    border-top: 2px dashed rgba(255,255,255,.7);
+    padding: .6rem 1.6rem .7rem;
+    font-size: .9rem;
+}
 
 /* Formulários */
 .formulario { display: grid; grid-template-columns: minmax(0, 1fr); gap: .5rem; background: var(--superficie); border: 1px solid var(--linha); border-radius: var(--raio); padding: 1.5rem; }
@@ -95,6 +106,13 @@ input[type=file] { padding: .45rem; }
 dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: .15rem 1rem; }
 dt { color: var(--suave); }
 dd { margin: 0; overflow-wrap: anywhere; }
+.editar-perfil { display: inline-block; margin-top: .4rem; font-weight: 600; }
+.foto-perfil { display: flex; gap: 1.25rem; align-items: center; flex-wrap: wrap; margin-bottom: .5rem; }
+.foto-perfil > div { flex: 1 1 14rem; display: grid; gap: .5rem; }
+.foto-perfil .foto { width: 6rem; height: 6rem; }
+.foto-perfil label { margin-top: 0; }
+.codigo { margin-top: .75rem; }
+.cartoes .cabecalho h2 { margin: 0; }
 
 /* Tabela de movimentações */
 .rolagem { overflow-x: auto; background: var(--superficie); border: 1px solid var(--linha); border-radius: var(--raio); }
@@ -132,6 +150,13 @@ dialog .formulario { border: 0; border-radius: 0; }
 .formulario .acoes .primario { margin-top: 0; }
 .secundario { font: inherit; font-weight: 600; color: var(--azul-escuro); background: #fff; border: 1.5px solid var(--azul); border-radius: var(--raio); min-height: 2.9rem; padding: .6rem 1.2rem; cursor: pointer; }
 .secundario:hover { background: #E3EEF9; }
+a.secundario { display: inline-flex; align-items: center; text-decoration: none; }
+.primario.perigo { background: var(--erro); }
+.primario.perigo:hover { background: #7F1414; }
+.link { font: inherit; font-weight: 600; color: var(--azul-escuro); background: none; border: 0; padding: .25rem .4rem; text-decoration: underline; cursor: pointer; }
+.link.perigo { color: var(--erro); }
+.acoes-linha { padding-top: .35rem; padding-bottom: .35rem; }
+.etiqueta { display: inline-block; margin-left: .5rem; padding: 0 .45rem; border-radius: 999px; background: #E3EEF9; color: var(--azul-escuro); font-size: .8rem; font-weight: 600; }
 .cabecalho { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
 .cabecalho h1 { margin: 0; }
 fieldset.tipo { border: 0; margin: 0 0 .5rem; padding: 0; display: flex; flex-wrap: wrap; gap: .25rem 1.5rem; }

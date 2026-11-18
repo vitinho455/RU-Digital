@@ -21,10 +21,9 @@
         <a href="/admin/cardapio" {{!'aria-current="page"' if ativo == 'admin-cardapio' else ''}}>Cardápio</a>
         % else:
         <a href="/painel" {{!'aria-current="page"' if ativo == 'painel' else ''}}>Meu painel</a>
-        % end
-        % if sessao['tipo'] == 'aluno':
         <a href="/cardapio" {{!'aria-current="page"' if ativo == 'cardapio' else ''}}>Cardápio</a>
         % end
+        <a href="/perfil" {{!'aria-current="page"' if ativo == 'perfil' else ''}}>Perfil</a>
         <form method="post" action="/logout">
             <input type="hidden" name="csrf" value="{{sessao['csrf']}}">
             <button type="submit" class="sair">Sair</button>

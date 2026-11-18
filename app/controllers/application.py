@@ -8,9 +8,10 @@ from bottle import BaseTemplate, abort, redirect, request, response, static_file
 
 from app.models import db, sessoes
 from app.models.admin import Admin
-from app.models.aluno import DOMINIO_INSTITUCIONAL, Aluno
+from app.models.aluno import Aluno
 from app.models.cardapio_semanal import LIMITE_BYTES, CardapioSemanal
 from app.models.cartao_credito import CartaoCredito
+from app.models.perfil import DOMINIO_INSTITUCIONAL, FOTO_LIMITE_BYTES, FOTO_MIMETYPES, caminho_foto
 
 COOKIE = 'ru_sessao'
 
@@ -169,7 +170,7 @@ class Application():
         aluno = self._aluno_logado(sessao)
         # Depois de salvar um cartão a página é recarregada com o valor digitado e o cartão já escolhido.
         valor = request.query.getunicode('valor') or ''
-        if not re.fullmatch(r'[0-9.,]{0,15}', valor):
+        if not re.fullmatch(r'(R\$ ?)?[0-9.,]{0,20}', valor):
             valor = ''
         return self._view('painel', sessao, aluno=aluno, carteira=aluno.carteira, minimo=Aluno.VALOR_MIN,
                           cartoes=CartaoCredito.listar(aluno.matricula), valor=valor,
@@ -195,14 +196,14 @@ class Application():
 
         if erro:
             self._flash(sessao, 'erro', erro)
-            redirect('/painel?' + urlencode({'valor': valor[:15], 'pagamento': pagamento[:20]}))
+            redirect('/painel?' + urlencode({'valor': valor[:24], 'pagamento': pagamento[:20]}))
         forma = cartao.rotulo if cartao else 'PIX'
         if aluno.realizar_recarga(valor, f'Recarga via {forma} (simulada)'):
             self._flash(sessao, 'ok', f'Recarga via {forma} concluída. Saldo atual: {brl(aluno.consultar_saldo())}.')
         redirect('/painel')
 
     def adicionar_cartao(self):
-        """Chamada pelo pop-up do painel (fetch). Responde JSON; nada além dos dados seguros é guardado."""
+        """Chamada pelo pop-up do painel ou do perfil (fetch). Responde JSON; nada além dos dados seguros é guardado."""
         sessao = self._exigir('aluno')
         self._checar_csrf(sessao)
         aluno = self._aluno_logado(sessao)
@@ -215,7 +216,10 @@ class Application():
         except ValueError as erro:
             response.status = 400
             return {'ok': False, 'erro': str(erro)}
-        self._flash(sessao, 'ok', f'Cartão {cartao.rotulo} adicionado. Ele já está selecionado como forma de pagamento.')
+        if request.forms.get('origem') == 'perfil':
+            self._flash(sessao, 'ok', f'Cartão {cartao.rotulo} adicionado. Ele já aparece nas formas de pagamento.')
+        else:
+            self._flash(sessao, 'ok', f'Cartão {cartao.rotulo} adicionado. Ele já está selecionado como forma de pagamento.')
         return {'ok': True, 'id': cartao.id, 'rotulo': cartao.rotulo}
 
     def remover_cartao(self, id_cartao):
@@ -224,7 +228,49 @@ class Application():
         aluno = self._aluno_logado(sessao)
         if CartaoCredito.remover(id_cartao, aluno.matricula):
             self._flash(sessao, 'ok', 'Cartão removido.')
-        redirect('/painel')
+        redirect('/perfil')
+
+    # ----------------------------------------------------------------- perfil
+
+    def _usuario_logado(self, sessao):
+        return self._admin_logado(sessao) if sessao['tipo'] == 'admin' else self._aluno_logado(sessao)
+
+    def perfil(self, flash=None, form=None):
+        """Aba Perfil, de alunos e de admins: cada um altera só os próprios dados."""
+        sessao = self._exigir()
+        usuario = self._usuario_logado(sessao)
+        if sessao['tipo'] == 'aluno':
+            codigo, cartoes = ('Código RU', usuario.matricula), CartaoCredito.listar(usuario.matricula)
+        else:
+            codigo, cartoes = ('Identificador', usuario.id_admin), None
+        return self._view('perfil', sessao, flash=flash, usuario=usuario, codigo=codigo, cartoes=cartoes,
+                          form=form or {'nome': usuario.nome, 'email': usuario.email}, dominio=DOMINIO_INSTITUCIONAL,
+                          foto_limite_mb=FOTO_LIMITE_BYTES // (1024 * 1024))
+
+    def atualizar_perfil(self):
+        sessao = self._exigir()
+        self._checar_csrf(sessao)
+        usuario = self._usuario_logado(sessao)
+        nome = request.forms.getunicode('nome') or ''
+        email = (request.forms.getunicode('email') or '').strip()
+        arquivo = request.files.get('foto')
+        foto = arquivo.file.read(FOTO_LIMITE_BYTES + 1) if arquivo is not None and arquivo.filename else None
+        try:
+            usuario.atualizar_perfil(nome, email, foto, remover_foto=request.forms.get('remover_foto') == '1')
+        except ValueError as erro:
+            response.status = 400
+            return self.perfil(_erro(str(erro)), {'nome': nome, 'email': email})
+        self._flash(sessao, 'ok', 'Perfil atualizado.')
+        redirect('/perfil')
+
+    def foto_perfil(self, nome):
+        self._exigir()
+        caminho = caminho_foto(nome)
+        if caminho is None:
+            abort(404, 'Foto não encontrada.')
+        resposta = static_file(nome, root=os.path.dirname(caminho), mimetype=FOTO_MIMETYPES[nome.rsplit('.', 1)[1]])
+        resposta.set_header('X-Content-Type-Options', 'nosniff')
+        return resposta
 
     # --------------------------------------------------------------- cardápio
 
@@ -243,10 +289,17 @@ class Application():
 
     # ------------------------------------------------------------------ admin
 
+    def _admin_logado(self, sessao):
+        admin = Admin.buscar(sessao['usuario_id'])
+        if admin is None:      # a conta foi excluída por outro admin
+            sessoes.encerrar(sessao['token'])
+            redirect('/login')
+        return admin
+
     def admin_usuarios(self, erro='', form=None):
-        """Tela inicial do admin: quem está cadastrado, e o pop-up para cadastrar usuários."""
+        """Tela inicial do admin: quem está cadastrado, e os pop-ups para cadastrar e excluir."""
         sessao = self._exigir('admin')
-        usuarios = Admin.buscar(sessao['usuario_id']).listar_usuarios()
+        usuarios = self._admin_logado(sessao).listar_usuarios()
         if erro:
             response.status = 400
         return self._view('admin_usuarios', sessao, alunos=usuarios['alunos'], admins=usuarios['admins'],
@@ -256,7 +309,7 @@ class Application():
     def cadastrar_usuario(self):
         sessao = self._exigir('admin')
         self._checar_csrf(sessao)
-        admin = Admin.buscar(sessao['usuario_id'])
+        admin = self._admin_logado(sessao)
         tipo = request.forms.get('tipo', '')
         nome = request.forms.getunicode('nome') or ''
         email = (request.forms.getunicode('email') or '').strip()
@@ -276,8 +329,31 @@ class Application():
         self._flash(sessao, 'ok', mensagem)
         redirect('/admin')
 
+    def excluir_admin(self, id_admin):
+        sessao = self._exigir('admin')
+        self._checar_csrf(sessao)
+        admin = self._admin_logado(sessao)
+        try:
+            nome = admin.excluir_admin(id_admin)
+            self._flash(sessao, 'ok', f'Administrador {nome} excluído.')
+        except ValueError as erro:
+            self._flash(sessao, 'erro', str(erro))
+        redirect('/admin')
+
+    def excluir_aluno(self, matricula):
+        sessao = self._exigir('admin')
+        self._checar_csrf(sessao)
+        admin = self._admin_logado(sessao)
+        try:
+            nome = admin.excluir_aluno(matricula)
+            self._flash(sessao, 'ok', f'Aluno {nome} excluído.')
+        except ValueError as erro:
+            self._flash(sessao, 'erro', str(erro))
+        redirect('/admin')
+
     def admin_cardapio(self):
         sessao = self._exigir('admin')
+        self._admin_logado(sessao)
         historico = CardapioSemanal.historico(10)
         return self._view('admin_cardapio', sessao, atual=historico[0] if historico else None,
                           anteriores=historico[1:], limite_mb=LIMITE_BYTES // (1024 * 1024))
@@ -285,7 +361,7 @@ class Application():
     def enviar_cardapio(self):
         sessao = self._exigir('admin')
         self._checar_csrf(sessao)
-        admin = Admin.buscar(sessao['usuario_id'])
+        admin = self._admin_logado(sessao)
         arquivo = request.files.get('arquivo')
         if arquivo is None or not arquivo.filename:
             self._flash(sessao, 'erro', 'Escolha um arquivo PDF para enviar.')

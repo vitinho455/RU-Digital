@@ -3,8 +3,10 @@
 <div class="grade">
     <div class="coluna">
         <div class="ficha" role="group" aria-label="Saldo do cartão do RU">
-            <p class="ficha-rotulo">Saldo no cartão do RU</p>
-            <p class="ficha-valor">{{brl(carteira.saldo_atual)}}</p>
+            <div class="ficha-corpo">
+                <p class="ficha-rotulo">Saldo no cartão do RU</p>
+                <p class="ficha-valor">{{brl(carteira.saldo_atual)}}</p>
+            </div>
             <p class="ficha-anterior">Saldo anterior: {{brl(carteira.saldo_anterior)}}</p>
         </div>
 
@@ -13,7 +15,7 @@
             <h2>Recarregar saldo</h2>
             <p class="nota">Simulação: nenhum pagamento real é feito, o valor entra direto no saldo. Recarga mínima: {{brl(minimo)}}.</p>
             <label for="valor">Valor da recarga</label>
-            <input id="valor" name="valor" value="{{valor}}" inputmode="decimal" autocomplete="off" placeholder="20,00" required>
+            <input id="valor" name="valor" value="{{valor}}" inputmode="decimal" autocomplete="off" placeholder="R$ 20,00" data-dinheiro required>
             <label for="pagamento">Forma de pagamento</label>
             <select id="pagamento" name="pagamento">
                 <option value="pix" {{'selected' if pagamento in ('', 'pix') else ''}}>PIX</option>
@@ -24,23 +26,6 @@
             </select>
             <button type="submit" class="primario">Recarregar</button>
         </form>
-
-        % if cartoes:
-        <section class="cartoes" aria-labelledby="titulo-cartoes">
-            <h2 id="titulo-cartoes">Cartões salvos</h2>
-            <ul>
-                % for c in cartoes:
-                <li>
-                    <span>{{c.rotulo}}<small>{{c.titular}} - vence {{c.validade}}{{' (vencido)' if c.vencido() else ''}}</small></span>
-                    <form method="post" action="/cartoes/{{c.id}}/remover">
-                        <input type="hidden" name="csrf" value="{{sessao['csrf']}}">
-                        <button type="submit" class="remover" aria-label="Remover o cartão {{c.rotulo}}">Remover</button>
-                    </form>
-                </li>
-                % end
-            </ul>
-        </section>
-        % end
     </div>
 
     <div class="coluna">
@@ -56,6 +41,7 @@
                     <dt>Código RU</dt><dd>{{aluno.matricula}}</dd>
                     <dt>E-mail</dt><dd>{{aluno.email}}</dd>
                 </dl>
+                <a class="editar-perfil" href="/perfil">Editar perfil</a>
             </div>
         </section>
 
@@ -88,31 +74,4 @@
     </div>
 </div>
 
-<dialog id="dialogo-cartao" aria-labelledby="titulo-dialogo-cartao">
-    <form method="post" action="/cartoes" id="form-cartao" class="formulario" autocomplete="on">
-        <input type="hidden" name="csrf" value="{{sessao['csrf']}}">
-        <h2 id="titulo-dialogo-cartao">Novo cartão de crédito</h2>
-        <p class="nota">Simulação: nada é cobrado. Guardamos só a bandeira, os 4 últimos dígitos, o nome e a validade. O número completo e o código de segurança nunca são guardados. Para testar, use 4111 1111 1111 1111.</p>
-        <p class="aviso erro" id="erro-cartao" role="alert" hidden></p>
-        <label for="numero">Número do cartão</label>
-        <input id="numero" name="numero" inputmode="numeric" autocomplete="cc-number" placeholder="0000 0000 0000 0000" maxlength="23" required>
-        <label for="titular">Nome impresso no cartão</label>
-        <input id="titular" name="titular" autocomplete="cc-name" maxlength="60" required>
-        <div class="linha-dupla">
-            <div>
-                <label for="validade">Validade</label>
-                <input id="validade" name="validade" inputmode="numeric" autocomplete="cc-exp" placeholder="MM/AA" maxlength="5" required>
-            </div>
-            <div>
-                <label for="cvv">Código de segurança</label>
-                <input id="cvv" name="cvv" inputmode="numeric" autocomplete="cc-csc" placeholder="123" maxlength="4" required>
-            </div>
-        </div>
-        <label for="apelido">Apelido do cartão (opcional)</label>
-        <input id="apelido" name="apelido" autocomplete="off" placeholder="Ex.: Nubank" maxlength="20">
-        <div class="acoes">
-            <button type="button" class="secundario" data-fechar-dialogo>Cancelar</button>
-            <button type="submit" class="primario">Salvar cartão</button>
-        </div>
-    </form>
-</dialog>
+% include('app/views/html/cartao_dialogo', sessao=sessao, origem='painel')
