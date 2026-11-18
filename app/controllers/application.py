@@ -1,4 +1,5 @@
 import hmac
+import os
 import re
 from datetime import datetime
 from urllib.parse import urlencode
@@ -30,7 +31,18 @@ def iniciais(nome: str) -> str:
     return (partes[0][0] + (partes[-1][0] if len(partes) > 1 else '')).upper()
 
 
-BaseTemplate.defaults.update(brl=brl, data_br=data_br, iniciais=iniciais)
+_ESTATICO = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'static')
+
+
+def versao(caminho: str) -> int:
+    """Data de modificação de um arquivo estático; vai na URL (?v=...) para o navegador baixar de novo quando ele muda."""
+    try:
+        return int(os.path.getmtime(os.path.join(_ESTATICO, caminho)))
+    except OSError:
+        return 0
+
+
+BaseTemplate.defaults.update(brl=brl, data_br=data_br, iniciais=iniciais, versao=versao)
 
 
 def _erro(texto):

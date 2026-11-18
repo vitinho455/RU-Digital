@@ -12,7 +12,10 @@ ctl = Application()
 
 @app.route('/static/<filepath:path>')
 def serve_static(filepath):
-    return static_file(filepath, root='./app/static')
+    resposta = static_file(filepath, root='./app/static')
+    # Sempre revalida com o servidor: evita o navegador ficar com um ru.js/ru.css antigo
+    resposta.set_header('Cache-Control', 'no-cache')
+    return resposta
 
 @app.route('/helper')
 def helper(info= None):

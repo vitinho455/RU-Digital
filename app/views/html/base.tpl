@@ -7,8 +7,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap">
-    <link rel="stylesheet" href="/static/css/ru.css">
-    <script src="/static/js/ru.js" defer></script>
+    <link rel="stylesheet" href="/static/css/ru.css?v={{versao('css/ru.css')}}">
+    <script src="/static/js/ru.js?v={{versao('js/ru.js')}}" defer></script>
 </head>
 <body>
 <a class="pular" href="#conteudo">Ir para o conteúdo</a>
